@@ -1,9 +1,76 @@
+<?xml version="1.0" encoding="UTF-8"?>
 <configuration>
+
+    <property name="LOG_FILE" value="log/app.log"/>
+    <property name="LOG_ROLLING_FILE" value="log/rolling-app.log"/>
+
+    <!-- 控制台 -->
     <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
         <encoder>
             <pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n</pattern>
         </encoder>
     </appender>
+
+    <!-- 日志文件 -->
+    <appender name="FILE" class="ch.qos.logback.core.FileAppender">
+        <file>${LOG_FILE}</file>
+        <append>true</append>
+        <immediateFlush>true</immediateFlush>
+        <encoder>
+            <pattern>%d %p %c{1.} [%t] %m%n</pattern>
+        </encoder>
+    </appender>
+
+    <!-- 按天/大小滚动的日志文件 -->
+    <appender name="FILE_ROLLING" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <file>${LOG_ROLLING_FILE}</file>
+        <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
+            <!-- add an .gz extension, Logback will compress the archived files -->
+            <fileNamePattern>log/archived/rolling-app.%d{yyyy-MM-dd}.%i.log.gz</fileNamePattern>
+            <!-- each archived file, size max 512KB -->
+            <maxFileSize>512KB</maxFileSize>
+            <!-- total size of all archive files, if total size > 2MB, it will delete old archived file -->
+            <totalSizeCap>2MB</totalSizeCap>
+            <!-- 2 days to keep -->
+            <maxHistory>2</maxHistory>
+        </rollingPolicy>
+        <encoder>
+            <pattern>%d %p %c{1.} [%t] %m%n</pattern>
+        </encoder>
+    </appender>
+
+    <!-- 邮件 -->
+    <appender name="EMAIL" class="ch.qos.logback.classic.net.SMTPAppender">
+        <smtpHost>smtp.example.com</smtpHost>
+        <smtpPort>25</smtpPort>
+        <username/>
+        <password/>
+        <to>user@example.com</to>
+        <from>Admin &lt;admin@example.com&gt;</from>
+        <!-- http://logback.qos.ch/manual/mdc.html -->
+        <subject>Notification: subject %X{some.MDC.key} - %logger{20}</subject>
+        <!--
+        <layout class="ch.qos.logback.classic.html.HTMLLayout"/>
+        -->
+        <layout class="ch.qos.logback.classic.PatternLayout">
+            <pattern>%d %p %c{1.} [%t] %m%n</pattern>
+        </layout>
+        <!-- for testing , comment in production, default 256 -->
+        <cyclicBufferTracker class="ch.qos.logback.core.spi.CyclicBufferTracker">
+            <!-- Send just one log entry per email, ready for a lot of emails if you put one. -->
+            <bufferSize>1</bufferSize>
+        </cyclicBufferTracker>
+        <!-- for testing , comment in production, default asynchronousSending = true -->
+        <asynchronousSending>false</asynchronousSending>
+    </appender>
+
+    <!-- https://logback.qos.ch/manual/appenders.html#AsyncAppender -->
+    <!-- AsyncAppender will drop events of level TRACE, DEBUG and INFO if its queue is 80% full -->
+    <appender name="ASYNC" class="ch.qos.logback.classic.AsyncAppender">
+        <appender-ref ref="FILE_ROLLING" />
+        <queueSize>512</queueSize>
+    </appender>
+
     <logger name="kafka" level="WARN" additivity="false">
         <appender-ref ref="CONSOLE"/>
     </logger>
@@ -15,6 +82,11 @@
     </logger>
     <logger name="org.eclipse.jetty" level="WARN" additivity="false">
         <appender-ref ref="CONSOLE"/>
+    </logger>
+    <logger name="com.my.project" level="INFO" additivity="false">
+        <appender-ref ref="CONSOLE"/>
+        <appender-ref ref="FILE"/>
+        <appender-ref ref="FILE_ROLLING"/>
     </logger>
     <root level="INFO">
         <appender-ref ref="CONSOLE" />
